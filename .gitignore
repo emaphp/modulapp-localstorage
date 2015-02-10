@@ -26,3 +26,13 @@ node_modules
 
 # Users Environment Variables
 .lock-wscript
+
+# public dir
+public/*.js
+public/*.woff
+public/*.woff2
+public/*.svg
+public/*.ttf
+public/*.gif
+public/*.eot
+public/*.map
