@@ -7,12 +7,12 @@
 module.exports = {
     //notes config
     Notes: {
-        endPoint: 'http://modulapp.dev/notes'
+        collectionId: "NotesCollection"
     },
 
     //contacts config
     Contacts: {
-        endPoint: 'http://modulapp.dev/contacts'
+        collectionId: "ContactsCollection"
     },
 
     //notitifer config

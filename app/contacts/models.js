@@ -9,7 +9,7 @@ var LocalStorage = require('localstorage');
 var Config = require('../config');
 
 var Contact = Backbone.Model.extend({
-    localStorage: new LocalStorage("ContactsCollection"),
+    localStorage: new LocalStorage(Config.Contacts.collectionId),
     
     validation: {
         name: {
@@ -34,7 +34,7 @@ var Contact = Backbone.Model.extend({
 var ContactsCollection = Backbone.Collection.extend({
     model: Contact,
     comparator: 'name',
-    localStorage: new LocalStorage("ContactsCollection")
+    localStorage: new LocalStorage(Config.Contacts.collectionId)
 });
 
 module.exports = {

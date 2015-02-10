@@ -10,7 +10,7 @@ var Config = require('../config');
 var moment = require('moment');
 
 var Note = Backbone.Model.extend({
-    localStorage: new LocalStorage("NotesCollection"),
+    localStorage: new LocalStorage(Config.Notes.collectionId),
     validation: {
         title: {
             required: true
@@ -23,7 +23,7 @@ var Note = Backbone.Model.extend({
 
 var NotesCollection = Backbone.Collection.extend({
     model: Note,
-    localStorage: new LocalStorage("NotesCollection"),
+    localStorage: new LocalStorage(Config.Notes.collectionId),
     comparator: function (n1, n2) {
         var t1 = moment(n1.get('createdAt')).format('X');
         var t2 = moment(n2.get('createdAt')).format('X');
