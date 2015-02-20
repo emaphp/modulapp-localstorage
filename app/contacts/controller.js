@@ -4,35 +4,47 @@
  * Controller class for Contacts module
  */
 
-var Marionette = require('marionette');
+var Controller = require('../controller');
 var Views = require('./views');
 var Models = require('./models');
-var Layout = require('../layout');
-var Storage = require('./storage');
+var storage = require('./storage');
+var layoutChannel = require('backbone.radio').channel('layout');
+var debug = require('backbone.radio').channel('debug');
 
-var ContactsController = Marionette.Controller.extend({
+var ContactsController = Controller.extend({
+    syncErrorMessage: "Couldn't fetch contacts",
+    
     initialize: function() {
-        console.log("'Contacts' controller is being initialized...");
+        debug.command('log', "Contacts controller is being initialized...");
+        this.setupListeners(storage);
     },
 
     detail: function(id) {
-        var view = new Views.ContactDetailView({model: Storage.get(id)});
-        Layout.contentRegion.show(view);
+        this.sync(storage, function() {
+            var view = new Views.ContactDetailView({model: storage.get(id)});
+            layoutChannel.command('set:content', view);
+        });
     },
 
     list: function() {
-        var view = new Views.ContactListView({collection: Storage.fetch()});
-        Layout.contentRegion.show(view);
+        this.sync(storage, function() {
+            var view = new Views.ContactListView({collection: storage.data});
+            layoutChannel.command('set:content', view);
+        });
     },
 
     create: function() {
-        var view = new Views.ContactCreateView({model: new Models.Contact()});
-        Layout.contentRegion.show(view);
+        this.sync(storage, function() {
+            var view = new Views.ContactCreateView({model: new Models.Contact()});
+            layoutChannel.command('set:content', view);
+        });
     },
 
     edit: function(id) {
-        var view = new Views.ContactEditView({model: Storage.get(id)});
-        Layout.contentRegion.show(view);
+        this.sync(storage, function() {
+            var view = new Views.ContactEditView({model: storage.get(id)});
+            layoutChannel.command('set:content', view);
+        });
     }
 });
 

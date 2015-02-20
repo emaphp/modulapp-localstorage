@@ -7,9 +7,11 @@
 var Backbone = require('backbone');
 var LocalStorage = require('localstorage');
 var Config = require('../config');
+var Model = require('../model');
+var Collection = require('../collection');
 var moment = require('moment');
 
-var Note = Backbone.Model.extend({
+var Note = Model.extend({
     localStorage: new LocalStorage(Config.Notes.collectionId),
     validation: {
         title: {
@@ -21,7 +23,7 @@ var Note = Backbone.Model.extend({
     }
 });
 
-var NotesCollection = Backbone.Collection.extend({
+var NotesCollection = Collection.extend({
     model: Note,
     localStorage: new LocalStorage(Config.Notes.collectionId),
     comparator: function (n1, n2) {

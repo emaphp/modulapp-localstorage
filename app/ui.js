@@ -6,15 +6,38 @@
 
 var Marionette = require('marionette');
 var Notifier = require('backbone.notifier');
+var Radio = require('backbone.radio');
 var Config = require('./config');
 
 var UI = Marionette.Object.extend({
+    initialize: function() {
+        Radio.channel('notify').comply('show:success', function(message) {
+            this.showSuccess(message);
+        }, this);
+
+        Radio.channel('notify').comply('show:error', function(message) {
+            this.showError(message);
+        }, this);
+
+        Radio.channel('notify').comply('validation:error', function(errors) {
+            this.showFormErrors(errors);
+        }, this);
+
+        Radio.channel('notify').comply('show:loader', function(message) {
+            this.showLoader(message);
+        }, this);
+
+        Radio.channel('notify').comply('clean', function(keepLoader) {
+            this.clean(keepLoader);
+        }, this);
+    },
+
     showFormErrors: function(errors) {
         this.clean();
 
         var msg = "<strong>Please correct the following errors:</strong>";
 
-        for (error in errors) {
+        for (var error in errors) {
             msg += "<br/>" + errors[error];
         }
         
@@ -76,12 +99,13 @@ var UI = Marionette.Object.extend({
         });
     },
     
-    clean: function() {
+    clean: function(keepLoader) {
         if (this.notify) {
+            if (keepLoader && this.notify.settings.loader)
+                return;
             this.notify.destroy();
-            delete this.notify;
         }
     }
 });
 
-module.exports = new UI();
+module.exports = UI;

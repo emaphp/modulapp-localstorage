@@ -10,6 +10,19 @@ app.set('port', (process.env.PORT || 5000));
 app.engine('.hbs', handlebars({extname: '.hbs'}));
 app.set('view engine', '.hbs');
 
+//environment middleware
+app.use(function(req, res, next) {
+    var uaid = process.env.SITE_ID;
+    if (!uaid) {
+        res.locals.includeAnalitycs = false;
+        return next();
+    }
+
+    res.locals.includeAnalitycs = (app.get('env') || 'development') === 'production';
+    res.locals.uaid = uaid;
+    next();
+});
+
 //static content
 app.use(express.static(__dirname + '/public'));
 

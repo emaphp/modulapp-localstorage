@@ -36,3 +36,6 @@ public/*.ttf
 public/*.gif
 public/*.eot
 public/*.map
+
+#env vars
+.env

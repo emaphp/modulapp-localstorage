@@ -5,30 +5,36 @@
  */
 
 var Marionette = require('marionette');
-var UI = require('./ui');
+var notify = require('backbone.radio').channel('notify');
 
 var Storage = Marionette.Object.extend({
-    fetch: function() {
-        if (typeof(this.data) == 'undefined') {
-            this.data = new this.collection;
-            UI.showLoader();
-            this.data.fetch({
-                success: this.success,
-                error: this.error
-            });
-        }
+    isReady: function() {
+        return typeof(this.data) != 'undefined';
+    },
 
-        return this.data;
+    fetch: function(callback) {
+        var self = this;
+        this.trigger('before:fetch');
+        this.data = new this.collection();
+        return this.data.fetch()
+        .then(function() {
+            self.trigger('fetch:success', this);
+        })
+        .catch(function(error) {
+            self.trigger('fetch:error', error, this);
+        })
+        .then(callback)
+        .then(function() {
+            self.trigger('after:fetch', this);  
+        });
     },
 
     get: function(id) {
-        if (this.data) return this.data.get(id);
-        return null;
+        return this.data ? this.data.get(id) : null;
     },
 
     add: function(model) {
-        if (this.data) this.data.add(model);
-        return null;
+        return this.data? this.data.add(model) : null;
     }
 });
 

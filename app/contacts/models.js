@@ -4,11 +4,12 @@
  * Models for Contacts module
  */
 
-var Backbone = require('backbone');
 var LocalStorage = require('localstorage');
 var Config = require('../config');
+var Model = require('../model');
+var Collection = require('../collection');
 
-var Contact = Backbone.Model.extend({
+var Contact = Model.extend({
     localStorage: new LocalStorage(Config.Contacts.collectionId),
     
     validation: {
@@ -31,7 +32,7 @@ var Contact = Backbone.Model.extend({
     }
 });
 
-var ContactsCollection = Backbone.Collection.extend({
+var ContactsCollection = Collection.extend({
     model: Contact,
     comparator: 'name',
     localStorage: new LocalStorage(Config.Contacts.collectionId)

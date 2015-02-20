@@ -218,7 +218,6 @@ a.pure-menu-heading {
  */
 
 .contact {
-    width: 96%;
     border-radius: 10px 10px 10px 10px;
     -moz-border-radius: 10px 10px 10px 10px;
     -webkit-border-radius: 10px 10px 10px 10px;
@@ -237,6 +236,10 @@ a.pure-menu-heading {
 
 .contact p {
     margin: 0.2em 0 !important;
+}
+
+.contact-item {
+    padding: 0 0.5em;
 }
 
 .contact-body {

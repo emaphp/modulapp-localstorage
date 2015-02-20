@@ -4,23 +4,39 @@
  * Views for Contacts module
  */
 
-var Backbone = require('backbone');
 var Marionette = require('marionette');
 var Models = require('./models');
 var _ = require('underscore');
-var UI = require('../ui');
+var Config = require('../config');
+var storage = require('./storage');
+var navChannel = require('backbone.radio').channel('nav');
+var notify = require('backbone.radio').channel('notify');
+var debug = require('backbone.radio').channel('debug');
 
 var ContactView = Marionette.ItemView.extend({
     model: Models.Contact,
     tagName: 'div',
-    className: "pure-u-1-1 pure-u-sm-1-1 pure-u-md-1-2 pure-u-lg-1-4",
+    className: "contact-item pure-u-1-1 pure-u-sm-1-1 pure-u-md-1-2 pure-u-lg-1-4",
     
-    initialize: function() {
-        this.listenTo(this.model, "change", this.render);
-    },
-
     template: function(model) {
         return require('./templates/_item.hbs')(model);
+    },
+
+    initialize: function() {
+        this.listenTo(this.model, 'change', this.render);
+
+        this.listenTo(this.model, 'before:destroy', function() {
+            notify.command('show:loader', 'Deleting contact...');
+            debug.command('log', 'Deleting contact with ID ' + this.model.id + '...');
+
+            this.debugString = (function(id) {
+                return function(msg1, msg2) {
+                    if (msg2)
+                        return msg1 + ' with ID ' + id + ' ' + msg2;
+                    return msg1 + ' with ID ' + id;
+                };
+            }(this.model.id));
+        });
     },
 
     events: {
@@ -29,15 +45,16 @@ var ContactView = Marionette.ItemView.extend({
 
     delete: function(evnt) {
         evnt.preventDefault();
-        UI.showLoader("Deleting contact...");
-        this.model.destroy({
-            success: function() {
-                UI.showSuccess('Contact deleted succesfully');
-            },
-            error: function() {
-                UI.showError("Error: Failed to delete contact");
-            },
-            wait: true,
+        
+        this.model.trigger('before:destroy');
+        var debugString = this.debugString;
+        this.model.destroy({wait: true})
+        .then(function() {
+            notify.command('show:success', 'Contact deleted succesfully');
+            debug.command('log', debugString('Contact', 'has been deleted'));
+        }, function() {
+            notify.command('show:error', 'Failed to delete contact');
+            debug.command('log', debugString('Failed to delete contact'));
         });
     }
 });
@@ -45,10 +62,7 @@ var ContactView = Marionette.ItemView.extend({
 var ContactEmptyView = Marionette.ItemView.extend({
     tagName: 'div',
     className: 'pure-u-1-1',
-
-    template: function() {
-        return require('./templates/_empty.html');
-    }
+    template: require('./templates/_empty.html')
 });
 
 var ContactListView = Marionette.CompositeView.extend({
@@ -56,10 +70,11 @@ var ContactListView = Marionette.CompositeView.extend({
     childView: ContactView,
     childViewContainer: '#contacts-list',
     className: 'pure-u-1-1',
+    template: require('./templates/list.html'),
 
-    initialize: function initialize(options) {
+    initialize: function (options) {
         this.contacts = options.collection;
-        this.applyFilter = _.debounce(this.filterList, 225);
+        this.applyFilter = _.debounce(this.filterList, Config.Contacts.filterDelay);
     },
 
     events: {
@@ -69,7 +84,7 @@ var ContactListView = Marionette.CompositeView.extend({
     filterList: function(evnt) {
         var filter = this.$el.find('#filter').val();
 
-        if (filter != "") {
+        if (filter !== "") {
             var regex = new RegExp(filter.replace(/([.*+?^${}()|\[\]\/\\])/g, "\\$1"), 'i');
             var filtered = this.contacts.filter(function(contact) {
                 if (contact.get('name').match(regex)) {
@@ -95,16 +110,12 @@ var ContactListView = Marionette.CompositeView.extend({
         }
         
         this._renderChildren();
-    },
-
-    template: function() {
-        return require('./templates/list.html');
     }
 });
 
 var ContactDetailView = Marionette.ItemView.extend({
     tagName: 'div',
-    className: "pure-u-1-1 pure-u-sm-1-1 pure-u-md-1-2 pure-u-lg-1-4",
+    className: "pure-u-1-1",
     
     template: function(model) {
         return require('./templates/detail.hbs')(model);
@@ -114,18 +125,29 @@ var ContactDetailView = Marionette.ItemView.extend({
 var ContactCreateView = Marionette.ItemView.extend({
     tagName: 'div',
     className: 'pure-u-1-1',
+    template: require('./templates/create.html'),
 
     initialize: function() {
         var Validation = require('backbone-validation');
         Validation.bind(this, {
             selector: 'id'
         });
+
+        this.on('before:destroy', function() {
+            Validation.unbind(this);
+        });
+
+        this.listenTo(this.model, 'before:save', function() {
+            notify.command('show:loader', 'Saving contact...');
+            debug.command('log', 'Saving new contact...');
+        });
+
+        this.listenTo(this.model, 'sync', function(model) {
+            storage.add(model);
+            debug.command('log', 'New contact saved with ID ' + model.get('id'));
+        });
     },
 
-    template: function() {
-        return require('./templates/create.html');
-    },
-    
     events: {
         "click .save": "save"
     },
@@ -142,36 +164,28 @@ var ContactCreateView = Marionette.ItemView.extend({
         });
 
         var errors = this.model.validate();
-        if (errors) {
-            UI.showFormErrors(errors);
-            return;
-        }
+        if (errors)
+            return notify.command('validation:error', errors);
 
-        UI.showLoader("Saving contact...");
-
-        this.model.save(this.model.attributes, {
-            wait: true,
-            success: function(model) {
-                require('./storage').add(model);
-                Backbone.history.navigate("contacts/list", true);
-                UI.showSuccess('Contact saved succesfully');
-            },
-            error: function() {
-                Backbone.history.navigate("contacts/list", true);
-                UI.showError("Error: Couldn't save contact");
-            }
+        this.model.trigger('before:save');
+        this.model.save(this.model.attributes, {wait: true})
+        .then(function(values) {
+            navChannel.command('navigate', 'contacts/list');
+            notify.command('show:success', 'Contact saved succesfully');
+        }, function() {
+            navChannel.command('navigate', 'contacts/list');
+            notify.command('show:error', "Couldn't save contact");
         });
-    },
-
-    remove: function() {
-        var Validation = require('backbone-validation');
-        Validation.unbind(this);
     }
 });
 
 var ContactEditView = Marionette.ItemView.extend({
     tagName: 'div',
     className: 'pure-u-1-1',
+
+    template: function(model) {
+        return require('./templates/edit.hbs')(model);
+    },
     
     initialize: function(options) {
         this.contact = options.model.clone();
@@ -180,11 +194,19 @@ var ContactEditView = Marionette.ItemView.extend({
             selector: 'id',
             model: this.contact
         });
-    },
 
-    template: function(model) {
-        var tpl = require('./templates/edit.hbs');
-        return tpl(model);
+        this.on('before:destroy', function() {
+            Validation.unbind(this);
+        });
+
+        this.listenTo(this.model, 'before:save', function() {
+            notify.command('show:loader', 'Saving contact...');
+            debug.command('log', 'Updating contact with ID ' + this.model.get('id') + '...');
+        });
+
+        this.listenTo(this.model, 'sync', function() {
+            debug.command('log', 'Contact with ID ' + this.model.get('id') + ' has been updated');
+        });
     },
 
     events: {
@@ -203,30 +225,18 @@ var ContactEditView = Marionette.ItemView.extend({
         });
 
         var errors = this.contact.validate();
-        if (errors) {
-            UI.showFormErrors(errors);
-            return;
-        }
+        if (errors)
+            return notify.command('validation:error', errors);
 
-        UI.showLoader("Saving contact...");
-
-        this.model.save(this.contact.attributes, {
-            wait: true,
-            success: function(model) {
-                require('./storage.js').add(model);
-                Backbone.history.navigate("contacts/list", true);
-                UI.showSuccess('Contact updated succesfully');
-            },
-            error: function() {
-                Backbone.history.navigate("contacts/list", true);
-                UI.showError("Error: Couldn't save contact");
-            }
+        this.model.trigger('before:save');
+        this.model.save(this.contact.attributes, {wait: true}).
+        then(function(values) {
+            navChannel.command('navigate', 'contacts/list');
+            notify.command('show:success', 'Contact updated succesfully');
+        }, function() {
+            navChannel.command('navigate', 'contacts/list');
+            notify.command('show:error', "Couldn't save contact");
         });
-    },
-
-    remove: function() {
-        var Validation = require('backbone-validation');
-        Validation.unbind(this);
     }
 });
 

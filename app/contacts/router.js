@@ -4,9 +4,11 @@
  * Router class for Contacts module
  */
  
-var Router = require('../router');
+var Marionette = require('marionette');
+var contextChannel = require('backbone.radio').channel('context');
+var notify = require('backbone.radio').channel('notify');
 
-var ContactsRouter = Router.extend({
+var ContactsRouter = Marionette.AppRouter.extend({
     initialize: function(controller) {
         //set controller
         this.controller = controller;
@@ -18,6 +20,11 @@ var ContactsRouter = Router.extend({
             "contacts/create": "create",
             "contacts/edit/:id": "edit"
         });
+    },
+
+    onRoute: function(name, path) {
+         contextChannel.command('set', 'contacts');
+         notify.command('clean', true);
     }
 });
 
